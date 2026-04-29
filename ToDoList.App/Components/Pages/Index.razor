@@ -1,0 +1,74 @@
+@page "/"
+@rendermode InteractiveServer
+@using ToDoList.Core
+@using ToDoList.Core.Models
+@using ToDoList.Core.Services
+@inject TodoManager Manager
+@inject FileService FileService
+
+@* Input field and button for adding a new task *@
+<div class="input-group mb-3">
+    <input class="form-control" @bind="newTask" @bind:event="oninput" placeholder="Enter a task..." />
+    <button class="btn btn-primary" @onclick="AddTask">Add Task</button>
+</div>
+
+@* Display the list of current tasks with a delete button for each *@
+@if (!tasks.Any())
+{
+    <p class="text-muted">No tasks yet. Add one above.</p>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var t in tasks)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                @t.Description
+                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteTask(t)">Delete</button>
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private string newTask = "";
+    private List<TodoItem> tasks = new();
+
+    /// <summary>
+    /// Loads saved tasks from file on startup, but only if the manager is empty
+    /// to avoid duplicating tasks that are already in memory.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        if (!Manager.GetAll().Any())
+        {
+            var saved = FileService.Load();
+            foreach (var kv in saved)
+                Manager.Add(kv.Value.Description);
+        }
+        tasks = Manager.GetAll();
+    }
+
+    /// <summary>
+    /// Adds a new task to the manager and saves to file.
+    /// Ignores empty input.
+    /// </summary>
+    private void AddTask()
+    {
+        if (string.IsNullOrWhiteSpace(newTask)) return;
+        Manager.Add(newTask);
+        tasks = Manager.GetAll();
+        FileService.Save(Manager.GetDictionary());
+        newTask = "";
+    }
+
+    /// <summary>
+    /// Removes the given task from the manager and saves to file.
+    /// </summary>
+    private void DeleteTask(TodoItem item)
+    {
+        Manager.Remove(item.Id);
+        tasks = Manager.GetAll();
+        FileService.Save(Manager.GetDictionary());
+    }
+}
